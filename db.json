@@ -1,0 +1,34 @@
+[
+  {
+    "id": "3f08c9dc-06b6-47dc-949c-8b09e7f43d43",
+    "filename": "3f08c9dc-06b6-47dc-949c-8b09e7f43d43.webm",
+    "originalName": "recording.webm",
+    "path": "/uploads/3f08c9dc-06b6-47dc-949c-8b09e7f43d43.webm",
+    "createdAt": "2026-01-13T16:15:18.376Z",
+    "views": 0
+  },
+  {
+    "id": "a68bb7ce-5ef1-4840-9e5c-21ec6082835f",
+    "filename": "a68bb7ce-5ef1-4840-9e5c-21ec6082835f.webm",
+    "originalName": "recording.webm",
+    "path": "/uploads/a68bb7ce-5ef1-4840-9e5c-21ec6082835f.webm",
+    "createdAt": "2026-01-13T16:17:44.928Z",
+    "views": 0
+  },
+  {
+    "id": "84409034-e64c-498d-b002-183a44b60359",
+    "filename": "84409034-e64c-498d-b002-183a44b60359.webm",
+    "originalName": "trimmed-a68bb7ce-5ef1-4840-9e5c-21ec6082835f.webm",
+    "path": "/uploads/84409034-e64c-498d-b002-183a44b60359.webm",
+    "createdAt": "2026-01-13T16:56:06.158Z",
+    "views": 0
+  },
+  {
+    "id": "c2cbe1dd-fb9a-446a-931d-11ba0f0d5f22",
+    "filename": "c2cbe1dd-fb9a-446a-931d-11ba0f0d5f22.webm",
+    "originalName": "trimmed-a68bb7ce-5ef1-4840-9e5c-21ec6082835f.webm",
+    "path": "/uploads/c2cbe1dd-fb9a-446a-931d-11ba0f0d5f22.webm",
+    "createdAt": "2026-01-13T17:42:36.235Z",
+    "views": 0
+  }
+]

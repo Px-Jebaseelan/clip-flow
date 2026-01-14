@@ -1,9 +1,15 @@
 import fs from "fs";
 import path from "path";
 import { kv } from "@vercel/kv";
+import Redis from "ioredis";
 
 const DB_PATH = path.join(process.cwd(), "db.json");
 const KV_KEY = "videos";
+
+// Initialize Redis client if REDIS_URL is present and KV_REST_API_URL is missing
+const redis = process.env.REDIS_URL && !process.env.KV_REST_API_URL
+    ? new Redis(process.env.REDIS_URL)
+    : null;
 
 export interface VideoData {
     id: string;
@@ -20,6 +26,16 @@ async function readDb(): Promise<VideoData[]> {
             return (await kv.get<VideoData[]>(KV_KEY)) || [];
         } catch (error) {
             console.error("KV Read Error:", error);
+            return [];
+        }
+    }
+
+    if (redis) {
+        try {
+            const data = await redis.get(KV_KEY);
+            return data ? JSON.parse(data) : [];
+        } catch (error) {
+            console.error("Redis Read Error:", error);
             return [];
         }
     }
@@ -49,8 +65,13 @@ async function writeDb(data: VideoData[]) {
         return;
     }
 
+    if (redis) {
+        await redis.set(KV_KEY, JSON.stringify(data));
+        return;
+    }
+
     if (process.env.VERCEL) {
-        throw new Error("Vercel KV is not configured. Please run `npx vercel storage add kv` and redeploy.");
+        throw new Error("Vercel KV/Redis is not configured. Please run `npx vercel storage add kv` and redeploy.");
     }
 
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));

@@ -24,6 +24,14 @@ async function readDb(): Promise<VideoData[]> {
         }
     }
 
+    if (process.env.VERCEL) {
+        // Return empty array or throw error depending on desired behavior. 
+        // Throwing ensures user knows they missed a step.
+        // However, for read, maybe we just return empty, but for write we fail.
+        // Let's log atleast.
+        console.warn("Vercel KV not configured, falling back to empty/fs which will fail on write.");
+    }
+
     if (!fs.existsSync(DB_PATH)) {
         return [];
     }
@@ -40,6 +48,11 @@ async function writeDb(data: VideoData[]) {
         await kv.set(KV_KEY, data);
         return;
     }
+
+    if (process.env.VERCEL) {
+        throw new Error("Vercel KV is not configured. Please run `npx vercel storage add kv` and redeploy.");
+    }
+
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 

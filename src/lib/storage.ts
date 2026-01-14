@@ -21,6 +21,11 @@ export async function saveFile(file: Blob, folder: string = "uploads"): Promise<
         };
     }
 
+    // Check if running on Vercel without Blob configured
+    if (process.env.VERCEL) {
+        throw new Error("Vercel Blob Storage is not configured. Please run `npx vercel storage add blob` and redeploy.");
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
     const uploadDir = path.join(process.cwd(), "public", folder);
 

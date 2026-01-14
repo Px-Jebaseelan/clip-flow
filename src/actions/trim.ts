@@ -8,53 +8,112 @@ import { v4 as uuidv4 } from "uuid";
 
 import ffmpegStatic from "ffmpeg-static";
 
+import { put } from "@vercel/blob";
+import os from "os";
+import { Readable } from "stream";
+import { finished } from "stream/promises";
+
 if (ffmpegStatic) {
     ffmpeg.setFfmpegPath(ffmpegStatic);
 }
 
-// We need uuid logic again. Since I can't import straightforwardly from storage if I didn't export it or it's not a library.
-// I'll just use crypto.randomUUID().
-
 export async function trimVideo(relativePath: string, start: number, end: number): Promise<{ id: string; url: string }> {
-    const cleanPath = relativePath.startsWith("/") ? relativePath.slice(1) : relativePath;
-    const inputPath = path.join(process.cwd(), "public", cleanPath);
-
-    if (!fs.existsSync(inputPath)) {
-        throw new Error("Input file not found: " + inputPath);
-    }
-
     const id = uuidv4();
-    const ext = path.extname(inputPath);
-    const outputFilename = `${id}${ext}`; // Use ID as filename for consistency
-    const outputRelativePath = `uploads/${outputFilename}`;
-    const outputPath = path.join(process.cwd(), "public", "uploads", outputFilename);
+    const isUrl = relativePath.startsWith("http");
 
-    // Ensure uploads dir exists (redundant but safe)
-    if (!fs.existsSync(path.dirname(outputPath))) {
-        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    // Determine input path (local file or download to temp)
+    let inputPath = "";
+    let tempInputPath = "";
+
+    if (isUrl) {
+        // Download file to temp
+        const response = await fetch(relativePath);
+        if (!response.ok) throw new Error(`Failed to fetch video: ${response.statusText}`);
+
+        const tempDir = os.tmpdir();
+        const ext = path.extname(new URL(relativePath).pathname) || ".webm";
+        tempInputPath = path.join(tempDir, `input-${id}${ext}`);
+
+        const fileStream = fs.createWriteStream(tempInputPath);
+        // @ts-ignore
+        await finished(Readable.fromWeb(response.body).pipe(fileStream));
+        inputPath = tempInputPath;
+    } else {
+        // Local filesystem fallback
+        const cleanPath = relativePath.startsWith("/") ? relativePath.slice(1) : relativePath;
+        inputPath = path.join(process.cwd(), "public", cleanPath);
+        if (!fs.existsSync(inputPath)) {
+            throw new Error("Input file not found: " + inputPath);
+        }
     }
 
-    return new Promise((resolve, reject) => {
-        ffmpeg(inputPath)
-            .setStartTime(start)
-            .setDuration(end - start)
-            .output(outputPath)
-            .on("end", async () => {
-                const url = "/" + outputRelativePath;
-                await addVideo({
-                    id,
-                    filename: outputFilename,
-                    originalName: "trimmed-" + path.basename(inputPath),
-                    path: url,
-                    createdAt: new Date().toISOString(),
-                    views: 0
-                });
-                resolve({ id, url });
-            })
-            .on("error", (err) => {
-                console.error("Trim error:", err);
-                reject(err);
-            })
-            .run();
-    });
+    // Determine output path (temp for Vercel, public for local)
+    const isVercel = !!process.env.VERCEL;
+    const outputFilename = `${id}.webm`; // output is always webm/mp4 container from ffmpeg usually? defaulting to input ext usually safer but lets stick to webm for now or determine from input
+    // Actually ffmpeg output format depends on extension. 
+
+    const outputExt = path.extname(inputPath) || ".webm";
+    const actualOutputFilename = `${id}${outputExt}`;
+
+    let outputPath = "";
+
+    if (isVercel) {
+        outputPath = path.join(os.tmpdir(), actualOutputFilename);
+    } else {
+        const uploadDir = path.join(process.cwd(), "public", "uploads");
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        outputPath = path.join(uploadDir, actualOutputFilename);
+    }
+
+    try {
+        await new Promise((resolve, reject) => {
+            ffmpeg(inputPath)
+                .setStartTime(start)
+                .setDuration(end - start)
+                .output(outputPath)
+                .on("end", resolve)
+                .on("error", (err) => {
+                    console.error("Trim ffmpeg error:", err);
+                    reject(err);
+                })
+                .run();
+        });
+
+        let finalUrl = "";
+
+        if (isVercel) {
+            // Upload to Blob
+            const fileStream = fs.createReadStream(outputPath);
+            const blob = await put(`uploads/${actualOutputFilename}`, fileStream, {
+                access: 'public',
+            });
+            finalUrl = blob.url;
+
+            // Clean up temp output
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+        } else {
+            // Local URL
+            finalUrl = `/uploads/${actualOutputFilename}`;
+        }
+
+        // Add to DB
+        await addVideo({
+            id,
+            filename: actualOutputFilename,
+            originalName: "trimmed-" + (isUrl ? "video" : path.basename(inputPath)),
+            path: finalUrl,
+            createdAt: new Date().toISOString(),
+            views: 0
+        });
+
+        return { id, url: finalUrl };
+
+    } finally {
+        // Clean up temp input if we downloaded it
+        if (tempInputPath && fs.existsSync(tempInputPath)) {
+            fs.unlinkSync(tempInputPath);
+        }
+    }
 }

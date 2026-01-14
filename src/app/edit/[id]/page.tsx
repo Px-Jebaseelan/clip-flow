@@ -12,7 +12,7 @@ interface EditPageProps {
 
 export default async function EditPage({ params }: EditPageProps) {
     const resolvedParams = await params;
-    const video = getVideo(resolvedParams.id);
+    const video = await getVideo(resolvedParams.id);
 
     if (!video) {
         notFound();

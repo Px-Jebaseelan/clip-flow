@@ -39,9 +39,9 @@ export async function trimVideo(relativePath: string, start: number, end: number
             .setStartTime(start)
             .setDuration(end - start)
             .output(outputPath)
-            .on("end", () => {
+            .on("end", async () => {
                 const url = "/" + outputRelativePath;
-                addVideo({
+                await addVideo({
                     id,
                     filename: outputFilename,
                     originalName: "trimmed-" + path.basename(inputPath),

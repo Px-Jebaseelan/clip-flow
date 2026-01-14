@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
+import { kv } from "@vercel/kv";
 
 const DB_PATH = path.join(process.cwd(), "db.json");
+const KV_KEY = "videos";
 
 export interface VideoData {
     id: string;
@@ -12,7 +14,16 @@ export interface VideoData {
     views: number;
 }
 
-function readDb(): VideoData[] {
+async function readDb(): Promise<VideoData[]> {
+    if (process.env.KV_REST_API_URL) {
+        try {
+            return (await kv.get<VideoData[]>(KV_KEY)) || [];
+        } catch (error) {
+            console.error("KV Read Error:", error);
+            return [];
+        }
+    }
+
     if (!fs.existsSync(DB_PATH)) {
         return [];
     }
@@ -24,26 +35,30 @@ function readDb(): VideoData[] {
     }
 }
 
-function writeDb(data: VideoData[]) {
+async function writeDb(data: VideoData[]) {
+    if (process.env.KV_REST_API_URL) {
+        await kv.set(KV_KEY, data);
+        return;
+    }
     fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
-export function addVideo(video: VideoData) {
-    const db = readDb();
+export async function addVideo(video: VideoData) {
+    const db = await readDb();
     db.push(video);
-    writeDb(db);
+    await writeDb(db);
 }
 
-export function getVideo(id: string): VideoData | undefined {
-    const db = readDb();
+export async function getVideo(id: string): Promise<VideoData | undefined> {
+    const db = await readDb();
     return db.find((v) => v.id === id);
 }
 
-export function incrementViews(id: string) {
-    const db = readDb();
+export async function incrementViews(id: string) {
+    const db = await readDb();
     const video = db.find((v) => v.id === id);
     if (video) {
         video.views = (video.views || 0) + 1;
-        writeDb(db);
+        await writeDb(db);
     }
 }

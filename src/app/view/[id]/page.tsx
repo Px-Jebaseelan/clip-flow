@@ -11,7 +11,7 @@ interface ViewPageProps {
 
 export default async function ViewPage({ params }: ViewPageProps) {
     const resolvedParams = await params;
-    const video = getVideo(resolvedParams.id);
+    const video = await getVideo(resolvedParams.id);
 
     if (!video) {
         notFound();
@@ -21,7 +21,7 @@ export default async function ViewPage({ params }: ViewPageProps) {
     // Note: in Next.js App Router, components are rendered on request.
     // Ideally this should be an action or handled carefully to avoid double counting on re-renders if strict mode or caching behavior.
     // For MVP, calling it here is acceptable.
-    incrementViews(resolvedParams.id);
+    await incrementViews(resolvedParams.id);
 
     return (
         <div className="min-h-screen bg-white">

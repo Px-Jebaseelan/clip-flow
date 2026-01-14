@@ -1,16 +1,27 @@
 import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-
-// We need to polyfill uuid or just use a simple random string generator if uuid not installed.
-// I didn't install uuid. I'll use crypto.randomUUID or a simple helper.
-// Node 19+ has global crypto.randomUUID. Next.js 14 runs on newer Node.
+import { put } from "@vercel/blob";
 
 export async function saveFile(file: Blob, folder: string = "uploads"): Promise<{ id: string; url: string; filepath: string; filename: string }> {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const id = uuidv4();
     const ext = file.type.split("/")[1] || "webm";
-    const filename = `${id}.${ext}`;
+    const filename = `${uuidv4()}.${ext}`;
+
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+        const blob = await put(`${folder}/${filename}`, file, {
+            access: 'public',
+        });
+
+        // For Blob storage, filepath is less relevant, we map it to the URL
+        return {
+            id: filename.split(".")[0],
+            url: blob.url,
+            filepath: blob.url,
+            filename: blob.pathname.split("/").pop() || filename
+        };
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
     const uploadDir = path.join(process.cwd(), "public", folder);
 
     if (!fs.existsSync(uploadDir)) {
@@ -21,7 +32,7 @@ export async function saveFile(file: Blob, folder: string = "uploads"): Promise<
     fs.writeFileSync(filepath, buffer);
 
     return {
-        id,
+        id: filename.split(".")[0],
         url: `/${folder}/${filename}`,
         filepath,
         filename

@@ -11,7 +11,7 @@ export async function uploadVideo(formData: FormData) {
 
     const result = await saveFile(file);
 
-    addVideo({
+    await addVideo({
         id: result.id,
         filename: result.filename,
         originalName: file.name || "recording.webm",

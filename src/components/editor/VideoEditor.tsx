@@ -22,6 +22,32 @@ export function VideoEditor({ videoUrl, onTrimComplete }: VideoEditorProps) {
     const [trimmedUrl, setTrimmedUrl] = useState<string | null>(null);
     const [trimmedId, setTrimmedId] = useState<string | null>(null);
     const [waveformHeights, setWaveformHeights] = useState<number[]>([]);
+    const [isDownloading, setIsDownloading] = useState(false);
+
+    const handleDownload = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!trimmedUrl) return;
+
+        try {
+            setIsDownloading(true);
+            const response = await fetch(trimmedUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `trimmed-video-${trimmedId || Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Download failed:', error);
+            alert('Failed to download video');
+        } finally {
+            setIsDownloading(false);
+        }
+    };
 
     useEffect(() => {
         // Generate waveform on client side only to avoid hydration mismatch
@@ -285,14 +311,18 @@ export function VideoEditor({ videoUrl, onTrimComplete }: VideoEditorProps) {
                         </div>
                     </div>
                     <div className="flex gap-3 w-full sm:w-auto">
-                        <a
-                            href={trimmedUrl}
-                            download
-                            className="flex-1 sm:flex-none inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors bg-white border border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 h-11 px-6 shadow-sm"
+                        <button
+                            onClick={handleDownload}
+                            disabled={isDownloading}
+                            className="flex-1 sm:flex-none inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors bg-white border border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 h-11 px-6 shadow-sm disabled:opacity-50"
                         >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download
-                        </a>
+                            {isDownloading ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <Download className="w-4 h-4 mr-2" />
+                            )}
+                            {isDownloading ? "Downloading..." : "Download"}
+                        </button>
                         <Button
                             variant="default" // Using default button styling but overriding classes if needed
                             className="flex-1 sm:flex-none h-11 px-6 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20"
